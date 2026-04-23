@@ -1,0 +1,108 @@
+# Default hg38 SV bank shipped with svforge
+#
+# Each template draws an SV family. The sampler picks a template
+# proportionally to its weight, then draws svlen uniformly within the
+# range. chroms=[] means any primary contig is allowed
+
+name: default_hg38
+genome: hg38
+
+templates:
+  # Deletions - dominant in most SV callsets
+  - svtype: DEL
+    svlen: [50, 500]
+    homlen: [0, 10]
+    weight: 4.0
+  - svtype: DEL
+    svlen: [500, 5000]
+    homlen: [0, 20]
+    weight: 3.0
+  - svtype: DEL
+    svlen: [5000, 50000]
+    homlen: [0, 30]
+    weight: 2.0
+  - svtype: DEL
+    svlen: [50000, 500000]
+    homlen: [0, 50]
+    weight: 1.0
+
+  # Duplications
+  - svtype: DUP
+    svlen: [200, 5000]
+    homlen: [0, 15]
+    weight: 2.0
+  - svtype: DUP
+    svlen: [5000, 50000]
+    homlen: [0, 25]
+    weight: 1.5
+  - svtype: DUP
+    svlen: [50000, 500000]
+    homlen: [0, 40]
+    weight: 0.8
+
+  # Inversions
+  - svtype: INV
+    svlen: [500, 10000]
+    homlen: [0, 15]
+    weight: 1.5
+  - svtype: INV
+    svlen: [10000, 200000]
+    homlen: [0, 30]
+    weight: 1.0
+  - svtype: INV
+    svlen: [200000, 2000000]
+    homlen: [0, 50]
+    weight: 0.5
+
+  # Insertions
+  - svtype: INS
+    svlen: [50, 300]
+    homlen: [0, 10]
+    weight: 2.0
+  - svtype: INS
+    svlen: [300, 2000]
+    homlen: [0, 15]
+    weight: 1.0
+
+  # BND - translocations and complex events
+  - svtype: BND
+    svlen: [1, 1]
+    homlen: [0, 10]
+    weight: 1.5
+  - svtype: BND
+    svlen: [1, 1]
+    homlen: [0, 10]
+    weight: 1.0
+    chroms: [chr1, chr2, chr3, chr4, chr5]
+  - svtype: BND
+    svlen: [1, 1]
+    homlen: [0, 10]
+    weight: 1.0
+    chroms: [chr17, chr18, chr19, chr20, chr21, chr22]
+
+  # Small representative extras to reach ~20 templates
+  - svtype: DEL
+    svlen: [50, 150]
+    homlen: [0, 5]
+    weight: 2.0
+    chroms: [chrX]
+  - svtype: DUP
+    svlen: [200, 2000]
+    homlen: [0, 10]
+    weight: 0.5
+    chroms: [chrX, chrY]
+  - svtype: INV
+    svlen: [1000, 50000]
+    homlen: [0, 20]
+    weight: 0.5
+    chroms: [chrX]
+  - svtype: INS
+    svlen: [50, 500]
+    homlen: [0, 8]
+    weight: 0.5
+    chroms: [chr21, chr22]
+  - svtype: DEL
+    svlen: [10000, 100000]
+    homlen: [0, 30]
+    weight: 1.0
+    chroms: [chr13, chr14, chr15]
