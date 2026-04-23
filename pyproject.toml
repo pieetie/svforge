@@ -1,0 +1,144 @@
+[build-system]
+requires = ["hatchling>=1.24"]
+build-backend = "hatchling.build"
+
+[project]
+name = "svforge"
+version = "1.0.0"
+description = "Synthetic VCF generator for structural variants (Manta, DELLY) with controlled variability and realistic artefact injection"
+readme = "README.md"
+requires-python = ">=3.10"
+license = { file = "LICENSE" }
+authors = [
+    { name = "Pierre NATIEZ" },
+]
+keywords = [
+    "bioinformatics",
+    "structural-variants",
+    "vcf",
+    "manta",
+    "delly",
+    "synthetic-data",
+    "testing",
+]
+classifiers = [
+    "Development Status :: 5 - Production/Stable",
+    "Intended Audience :: Science/Research",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: POSIX :: Linux",
+    "Operating System :: MacOS",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Scientific/Engineering :: Bio-Informatics",
+]
+dependencies = [
+    "pysam>=0.22",
+    "intervaltree>=3.1",
+    "PyYAML>=6.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "ruff>=0.5",
+    "mypy>=1.10",
+    "types-PyYAML",
+]
+test = [
+    "pytest>=8.0",
+    "pytest-cov>=5.0",
+]
+
+[project.scripts]
+svforge = "svforge.cli:main"
+
+[project.entry-points."svforge.writers"]
+manta = "svforge.writers.manta:MantaWriter"
+delly = "svforge.writers.delly:DellyWriter"
+
+[project.urls]
+Homepage = "https://github.com/pieetie/svforge"
+Repository = "https://github.com/pieetie/svforge"
+Issues = "https://github.com/pieetie/svforge/issues"
+Changelog = "https://github.com/pieetie/svforge/blob/main/CHANGELOG.md"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/svforge"]
+
+[tool.hatch.build.targets.wheel.force-include]
+"src/svforge/data/banks/default_hg38.yaml" = "svforge/data/banks/default_hg38.yaml"
+"src/svforge/data/headers/manta_somatic_hg38.vcf.template" = "svforge/data/headers/manta_somatic_hg38.vcf.template"
+"src/svforge/data/headers/delly_somatic_hg38.vcf.template" = "svforge/data/headers/delly_somatic_hg38.vcf.template"
+
+[tool.hatch.build.targets.sdist]
+include = [
+    "/src",
+    "/tests",
+    "/README.md",
+    "/CHANGELOG.md",
+    "/CONTRIBUTING.md",
+    "/LICENSE",
+    "/pyproject.toml",
+]
+
+[tool.ruff]
+line-length = 100
+target-version = "py310"
+src = ["src", "tests"]
+
+[tool.ruff.lint]
+select = [
+    "E",   # pycodestyle errors
+    "W",   # pycodestyle warnings
+    "F",   # pyflakes
+    "I",   # isort
+    "B",   # bugbear
+    "UP",  # pyupgrade
+    "SIM", # simplify
+    "PL",  # pylint subset
+    "RUF", # ruff-specific
+    "C4",  # comprehensions
+    "PTH", # pathlib
+    "TID", # tidy imports
+]
+ignore = [
+    "E501",    # line length handled by formatter
+    "PLR0913", # too many arguments (CLI code needs this)
+    "PLR2004", # magic values (tolerated in tests and VCF spec constants)
+]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/**/*.py" = ["PLR2004", "S101"]
+
+[tool.ruff.format]
+quote-style = "double"
+indent-style = "space"
+
+[tool.mypy]
+python_version = "3.10"
+strict = true
+warn_unused_configs = true
+warn_unreachable = true
+disallow_untyped_defs = true
+disallow_incomplete_defs = true
+check_untyped_defs = true
+no_implicit_optional = true
+show_error_codes = true
+
+[[tool.mypy.overrides]]
+module = [
+    "pysam",
+    "pysam.*",
+    "intervaltree",
+]
+ignore_missing_imports = true
+
+[tool.pytest.ini_options]
+minversion = "8.0"
+testpaths = ["tests"]
+addopts = [
+    "-ra",
+    "--strict-markers",
+    "--strict-config",
+]
