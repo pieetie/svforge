@@ -90,6 +90,7 @@ def _base_info(sv: SV) -> list[str]:
     if sv.origin == "somatic" and sv.svtype != "BND":
         info.append("SOMATIC")
         info.append("SOMATICSCORE=60")
+    info.append(f"SVFORGE_SOURCE={sv.source}")
     for key, value in sv.info_extra.items():
         info.append(f"{key}={value}" if value else key)
     return info
@@ -163,6 +164,8 @@ def _bnd_mate_records(sv: SV) -> list[str]:
         for info in (info1, info2):
             info.append("SOMATIC")
             info.append("SOMATICSCORE=60")
+    info1.append(f"SVFORGE_SOURCE={sv.source}")
+    info2.append(f"SVFORGE_SOURCE={sv.source}")
 
     fmt, sample = _sample_column(sv)
     rec1 = "\t".join(

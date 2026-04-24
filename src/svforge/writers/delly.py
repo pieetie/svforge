@@ -108,6 +108,7 @@ def _base_info(sv: SV) -> list[str]:
         info.append(f"HOMLEN={sv.homlen}")
     if sv.origin == "somatic":
         info.append("SOMATIC")
+    info.append(f"SVFORGE_SOURCE={sv.source}")
     for key, value in sv.info_extra.items():
         info.append(f"{key}={value}" if value else key)
     return info
