@@ -70,6 +70,8 @@ packages = ["src/svforge"]
 "src/svforge/data/banks/default_hg38.yaml" = "svforge/data/banks/default_hg38.yaml"
 "src/svforge/data/headers/manta_somatic_hg38.vcf.template" = "svforge/data/headers/manta_somatic_hg38.vcf.template"
 "src/svforge/data/headers/delly_somatic_hg38.vcf.template" = "svforge/data/headers/delly_somatic_hg38.vcf.template"
+"src/svforge/data/injections/gnomad_hg38_mini.tsv" = "svforge/data/injections/gnomad_hg38_mini.tsv"
+"src/svforge/data/injections/blacklist_hg38_mini.tsv" = "svforge/data/injections/blacklist_hg38_mini.tsv"
 
 [tool.hatch.build.targets.sdist]
 include = [

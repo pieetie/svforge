@@ -14,9 +14,11 @@ from typing import Literal
 SVType = Literal["DEL", "DUP", "INV", "INS", "BND"]
 Genotype = Literal["0/0", "0/1", "1/1"]
 Origin = Literal["somatic", "germline"]
+SVSource = Literal["bank", "gnomad", "blacklist"]
 
 VALID_SVTYPES: frozenset[str] = frozenset({"DEL", "DUP", "INV", "INS", "BND"})
 VALID_GENOTYPES: frozenset[str] = frozenset({"0/0", "0/1", "1/1"})
+VALID_SOURCES: frozenset[str] = frozenset({"bank", "gnomad", "blacklist"})
 
 
 @dataclass(slots=True)
@@ -66,6 +68,7 @@ class SV:
     ins_seq: str = ""
     filter: str = "PASS"
     origin: Origin = "somatic"
+    source: SVSource = "bank"
     info_extra: dict[str, str] = field(default_factory=dict)
 
     def __post_init__(self) -> None:
@@ -87,6 +90,8 @@ class SV:
             raise ValueError("BND SV requires mate_chrom and mate_pos")
         if len(self.strands) != 2 or any(c not in "+-" for c in self.strands):
             raise ValueError(f"strands must be two chars in '+-', got {self.strands!r}")
+        if self.source not in VALID_SOURCES:
+            raise ValueError(f"Unknown source {self.source!r} (valid: {sorted(VALID_SOURCES)})")
 
     @property
     def breakpoint1(self) -> Breakpoint:
