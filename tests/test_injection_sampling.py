@@ -14,6 +14,7 @@ from svforge.core.bank import Bank
 from svforge.core.injection_catalogs import load_blacklist_catalog, load_gnomad_catalog
 from svforge.core.sampler import SamplerConfig, sample
 
+
 def _record_coords(rec: pysam.VariantRecord) -> tuple[str, int, int]:
     svtype = rec.info.get("SVTYPE")
     if isinstance(svtype, tuple):

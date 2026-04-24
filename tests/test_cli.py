@@ -10,6 +10,7 @@ import pysam
 
 from svforge.cli import main
 
+
 def test_cli_callers(capsys) -> None:  # type: ignore[no-untyped-def]
     rc = main(["callers"])
     assert rc == 0

@@ -9,6 +9,7 @@ from pathlib import Path
 
 from svforge.core.regions import RegionSet, load_bed
 
+
 def test_overlap_point() -> None:
     rs = RegionSet([("chr1", 100, 200)])
     assert rs.overlaps_point("chr1", 150)

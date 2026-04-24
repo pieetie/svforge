@@ -12,6 +12,7 @@ from svforge.core.models import SV
 from svforge.io.vcf_writer import write_vcf
 from svforge.writers import get_writer
 
+
 def _svs() -> list[SV]:
     return [
         SV(id="del1", svtype="DEL", chrom="chr1", pos=100_000, end=101_000, svlen=1_000),

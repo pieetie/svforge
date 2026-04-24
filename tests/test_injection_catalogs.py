@@ -7,6 +7,7 @@ from __future__ import annotations
 from svforge.core.genome import HG38_CONTIGS
 from svforge.core.injection_catalogs import load_blacklist_catalog, load_gnomad_catalog
 
+
 def test_gnomad_catalog_parses_with_min_entries() -> None:
     catalog = load_gnomad_catalog()
     assert len(catalog) >= 50

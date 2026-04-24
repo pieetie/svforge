@@ -10,6 +10,7 @@ import pytest
 
 from svforge.core.bank import list_builtin_banks, load_bank
 
+
 def test_load_builtin_default_bank() -> None:
     bank = load_bank("default_hg38")
     assert bank.name == "default_hg38"

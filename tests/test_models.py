@@ -8,6 +8,7 @@ import pytest
 
 from svforge.core.models import SV, Breakpoint, SVPair
 
+
 class TestBreakpoint:
     def test_valid(self) -> None:
         bp = Breakpoint("chr1", 100, "+")

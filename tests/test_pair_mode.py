@@ -13,6 +13,7 @@ from svforge.core.sampler import SamplerConfig, sample_pair
 from svforge.io.vcf_writer import write_vcf
 from svforge.writers import get_writer
 
+
 def test_sample_pair_writes_two_consistent_vcfs(tmp_path: Path, mini_bank: Bank) -> None:
     pair = sample_pair(
         mini_bank,

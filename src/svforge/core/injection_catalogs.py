@@ -59,7 +59,7 @@ def load_gnomad_catalog() -> tuple[GnomadEntry, ...]:
     """
     return tuple(_iter_gnomad(_read_tsv(GNOMAD_TSV)))
 
- 
+
 @cache
 def load_blacklist_catalog() -> tuple[BlacklistEntry, ...]:
     """
@@ -89,7 +89,7 @@ def _iter_gnomad(rows: list[dict[str, str]]) -> Iterator[GnomadEntry]:
             end_chrom=row.get("end_chrom") or row["chrom"],
             svtype=row["svtype"].upper(),
             source_id=row["source_id"],
-        )  
+        )
 
 
 def _iter_blacklist(rows: list[dict[str, str]]) -> Iterator[BlacklistEntry]:

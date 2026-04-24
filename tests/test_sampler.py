@@ -7,6 +7,7 @@ from __future__ import annotations
 from svforge.core.bank import Bank
 from svforge.core.sampler import SamplerConfig, sample, sample_pair
 
+
 def test_sample_deterministic_with_seed(mini_bank: Bank) -> None:
     cfg = SamplerConfig(n=30, seed=42)
     a = sample(mini_bank, cfg)

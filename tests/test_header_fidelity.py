@@ -28,6 +28,7 @@ from svforge.io.vcf_writer import write_vcf
 from svforge.writers import get_writer
 from svforge.writers.base import CallerWriter
 
+
 def _load_template(name: str) -> list[str]:
     return (
         resources.files("svforge.data.headers")
