@@ -1,0 +1,27 @@
+##fileformat=VCFv4.1
+##fileDate={FILE_DATE}
+##source=GenerateSVCandidates 1.6.0
+##reference=file:///{REFERENCE_FASTA}
+##contig=<ID=chr1,length=248956422>
+##contig=<ID=chr2,length=242193529>
+##INFO=<ID=SVTYPE,Number=1,Type=String,Description="Type of structural variant">
+##INFO=<ID=SVLEN,Number=.,Type=Integer,Description="Difference in length between REF and ALT alleles">
+##INFO=<ID=END,Number=1,Type=Integer,Description="End position of the variant described in this record">
+##INFO=<ID=HOMLEN,Number=.,Type=Integer,Description="Length of base pair identical homology">
+##INFO=<ID=SOMATIC,Number=0,Type=Flag,Description="Somatic mutation">
+##INFO=<ID=SOMATICSCORE,Number=1,Type=Integer,Description="Somatic variant Quality score">
+##INFO=<ID=MATEID,Number=.,Type=String,Description="ID of mate breakends">
+##INFO=<ID=EVENT,Number=1,Type=String,Description="ID of event associated to breakend">
+##INFO=<ID=SVINSLEN,Number=.,Type=Integer,Description="Length of insertion">
+##INFO=<ID=SVINSSEQ,Number=.,Type=String,Description="Sequence of insertion">
+##INFO=<ID=CUSTOM_SVFORGE_TAG,Number=1,Type=String,Description="Marker unique to this fixture so tests can detect the override">
+##FILTER=<ID=MinSomaticScore,Description="Somatic score below threshold">
+##FORMAT=<ID=PR,Number=.,Type=Integer,Description="Spanning paired-read support">
+##FORMAT=<ID=SR,Number=.,Type=Integer,Description="Split reads support">
+##ALT=<ID=DEL,Description="Deletion">
+##ALT=<ID=DUP,Description="Duplication">
+##ALT=<ID=INV,Description="Inversion">
+##ALT=<ID=INS,Description="Insertion">
+##ALT=<ID=BND,Description="Translocation">
+##cmdline={CMDLINE}
+#CHROM	POS	ID	REF	ALT	QUAL	FILTER	INFO	FORMAT	{NORMAL_SAMPLE}	{TUMOR_SAMPLE}
