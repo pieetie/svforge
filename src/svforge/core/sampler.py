@@ -2,12 +2,15 @@
 Sample SVs from a :class:`Bank` with reproducible RNG
 
 Knobs:
+
 - ``svtypes``: restrict to a subset of svtypes (e.g. ``{"DEL", "DUP"}``)
 - ``svlen_range`` / ``homlen_range``: hard CLI overrides, clamp template ranges
 - ``vaf_range``: uniform VAF draw
-- ``blacklist`` / ``gnomad``: :class:`RegionSet` + target fraction; SVs are
-  drawn to overlap / not overlap these sets until the target fraction is met
-  (best-effort with a retry budget)
+- ``gnomad_fraction`` / ``blacklist_fraction``: fraction of the requested SV
+  count drawn directly from the bundled mini catalogs (Phase C). The
+  catalog rows (CHROM/POS/END) are reproduced verbatim so downstream
+  pipelines match them exactly. Sampling is without replacement when
+  possible; with replacement otherwise
 
 ``sample_pair`` composes ``sample`` twice to produce a consistent tumor/normal
 SV set where germline events are duplicated across both samples with the same
@@ -16,19 +19,29 @@ coordinates but possibly different VAFs
 
 from __future__ import annotations
 
+import logging
 import random
 import uuid
 from collections.abc import Sequence
 from dataclasses import dataclass
-from typing import Literal
+from typing import Literal, TypeVar
 
 from svforge.core.bank import Bank, SVTemplate
 from svforge.core.genome import GenomeBuild, get_contigs
+from svforge.core.injection_catalogs import (
+    BlacklistEntry,
+    GnomadEntry,
+    load_blacklist_catalog,
+    load_gnomad_catalog,
+)
 from svforge.core.models import SV, SVPair
-from svforge.core.regions import RegionSet
 
-_SAMPLE_RETRY_BUDGET = 200
 _CHROM_SAMPLE_MARGIN = 10_000
+_BLACKLIST_SVTYPES = ("DEL", "DUP", "INV")
+
+_T = TypeVar("_T")
+
+log = logging.getLogger(__name__)
 
 
 @dataclass(slots=True)
@@ -43,9 +56,7 @@ class SamplerConfig:
     svlen_range: tuple[int, int] | None = None
     homlen_range: tuple[int, int] | None = None
     vaf_range: tuple[float, float] = (0.3, 1.0)
-    blacklist: RegionSet | None = None
     blacklist_fraction: float = 0.0
-    gnomad: RegionSet | None = None
     gnomad_fraction: float = 0.0
     seed: int | None = None
     origin: Literal["somatic", "germline"] = "somatic"
@@ -59,6 +70,11 @@ class SamplerConfig:
             raise ValueError("blacklist_fraction must be in [0, 1]")
         if not 0.0 <= self.gnomad_fraction <= 1.0:
             raise ValueError("gnomad_fraction must be in [0, 1]")
+        total = self.blacklist_fraction + self.gnomad_fraction
+        if total > 1.0 + 1e-9:
+            raise ValueError(
+                f"blacklist_fraction + gnomad_fraction must be <= 1.0, got {total:.3f}"
+            )
         if self.vaf_range[0] > self.vaf_range[1] or not (
             0.0 <= self.vaf_range[0] <= 1.0 and 0.0 <= self.vaf_range[1] <= 1.0
         ):
@@ -87,40 +103,16 @@ def sample(bank: Bank, cfg: SamplerConfig) -> list[SV]:
 
     n_blacklist = round(cfg.n * cfg.blacklist_fraction)
     n_gnomad = round(cfg.n * cfg.gnomad_fraction)
-    n_plain = max(0, cfg.n - n_blacklist - n_gnomad)
+    if n_blacklist + n_gnomad > cfg.n:
+        n_gnomad = max(0, cfg.n - n_blacklist)
+    n_bank = max(0, cfg.n - n_blacklist - n_gnomad)
 
     svs: list[SV] = []
-    svs.extend(
-        _draw_many(
-            n_plain, templates, weights, contigs, cfg, rng, want_blacklist=False, want_gnomad=False
-        )
-    )
-    if n_blacklist and cfg.blacklist is not None:
-        svs.extend(
-            _draw_many(
-                n_blacklist,
-                templates,
-                weights,
-                contigs,
-                cfg,
-                rng,
-                want_blacklist=True,
-                want_gnomad=False,
-            )
-        )
-    if n_gnomad and cfg.gnomad is not None:
-        svs.extend(
-            _draw_many(
-                n_gnomad,
-                templates,
-                weights,
-                contigs,
-                cfg,
-                rng,
-                want_blacklist=False,
-                want_gnomad=True,
-            )
-        )
+    svs.extend(_draw_bank(n_bank, templates, weights, contigs, cfg, rng))
+    if n_gnomad:
+        svs.extend(_draw_gnomad(n_gnomad, cfg, rng))
+    if n_blacklist:
+        svs.extend(_draw_blacklist(n_blacklist, cfg, rng))
 
     rng.shuffle(svs)
     svs.sort(key=lambda sv: (_chrom_key(sv.chrom), sv.pos))
@@ -177,6 +169,7 @@ def sample_pair(
                 ins_seq=sv.ins_seq,
                 filter=sv.filter,
                 origin="germline",
+                source=sv.source,
                 info_extra=dict(sv.info_extra),
             )
         )
@@ -201,183 +194,153 @@ def _filter_templates(
     return out
 
 
-def _draw_many(
+def _draw_bank(
     count: int,
     templates: Sequence[SVTemplate],
     weights: Sequence[float],
     contigs: dict[str, int],
     cfg: SamplerConfig,
     rng: random.Random,
-    *,
-    want_blacklist: bool,
-    want_gnomad: bool,
 ) -> list[SV]:
     out: list[SV] = []
     for _ in range(count):
-        sv = _draw_one(
-            templates,
-            weights,
-            contigs,
-            cfg,
-            rng,
-            want_blacklist=want_blacklist,
-            want_gnomad=want_gnomad,
-        )
+        template = rng.choices(list(templates), weights=list(weights), k=1)[0]
+        sv = _materialize(template, contigs, cfg, rng)
         out.append(sv)
     return out
 
 
-def _draw_one(
-    templates: Sequence[SVTemplate],
-    weights: Sequence[float],
-    contigs: dict[str, int],
-    cfg: SamplerConfig,
-    rng: random.Random,
-    *,
-    want_blacklist: bool,
-    want_gnomad: bool,
-) -> SV:
-    target_region: RegionSet | None = None
-    exact_breakpoints = False
-    if want_blacklist and cfg.blacklist is not None:
-        target_region = cfg.blacklist
-    elif want_gnomad and cfg.gnomad is not None:
-        target_region = cfg.gnomad
-        # gnomAD injection matches the "real pipeline" semantics used by
-        # :mod:`svforge.validate.overlap`: both breakpoints of the injected SV
-        # must coincide with a gnomAD entry within a 2 bp tolerance. Using the
-        # region's exact start/end guarantees that downstream validation can
-        # detect the match
-        exact_breakpoints = True
+def _draw_gnomad(count: int, cfg: SamplerConfig, rng: random.Random) -> list[SV]:
+    catalog = list(load_gnomad_catalog())
+    eligible = _filter_gnomad_catalog(catalog, cfg)
+    if not eligible:
+        raise ValueError(
+            "No gnomAD catalog entry matches the active filter "
+            f"(svtypes={cfg.svtypes}, chroms={sorted(cfg.chroms) if cfg.chroms else None})"
+        )
+    picks = _sample_without_replacement(eligible, count, rng)
+    return [_gnomad_entry_to_sv(entry, cfg, rng) for entry in picks]
 
-    for _ in range(_SAMPLE_RETRY_BUDGET):
-        template = rng.choices(list(templates), weights=list(weights), k=1)[0]
-        if target_region is not None:
-            sv = _materialize_in_region(
-                template, contigs, target_region, cfg, rng, exact=exact_breakpoints
-            )
-        else:
-            sv = _materialize(template, contigs, cfg, rng)
 
-        blacklist_hit = cfg.blacklist is not None and _overlaps_region(cfg.blacklist, sv)
-        gnomad_hit = cfg.gnomad is not None and _overlaps_region(cfg.gnomad, sv)
+def _draw_blacklist(count: int, cfg: SamplerConfig, rng: random.Random) -> list[SV]:
+    catalog = list(load_blacklist_catalog())
+    eligible = _filter_blacklist_catalog(catalog, cfg)
+    if not eligible:
+        raise ValueError(
+            "No blacklist catalog entry matches the active filter "
+            f"(chroms={sorted(cfg.chroms) if cfg.chroms else None})"
+        )
+    picks = _sample_without_replacement(eligible, count, rng)
+    return [_blacklist_entry_to_sv(entry, cfg, rng) for entry in picks]
 
-        if want_blacklist and not blacklist_hit:
+
+def _filter_gnomad_catalog(catalog: list[GnomadEntry], cfg: SamplerConfig) -> list[GnomadEntry]:
+    out: list[GnomadEntry] = []
+    for entry in catalog:
+        if cfg.svtypes is not None and entry.svtype not in cfg.svtypes:
             continue
-        if want_gnomad and not gnomad_hit:
+        if cfg.chroms is not None and entry.chrom not in cfg.chroms:
             continue
-        if not want_blacklist and blacklist_hit and cfg.blacklist_fraction == 0.0:
+        if cfg.chroms is not None and entry.end_chrom not in cfg.chroms:
             continue
-        if not want_gnomad and gnomad_hit and cfg.gnomad_fraction == 0.0:
+        out.append(entry)
+    return out
+
+
+def _filter_blacklist_catalog(
+    catalog: list[BlacklistEntry], cfg: SamplerConfig
+) -> list[BlacklistEntry]:
+    out: list[BlacklistEntry] = []
+    eligible_svtypes = tuple(cfg.svtypes) if cfg.svtypes is not None else _BLACKLIST_SVTYPES
+    if not any(t in _BLACKLIST_SVTYPES for t in eligible_svtypes):
+        raise ValueError(
+            "Blacklist injection requires at least one of DEL/DUP/INV in svtypes; "
+            f"got {sorted(eligible_svtypes)}"
+        )
+    for entry in catalog:
+        if cfg.chroms is not None and entry.chrom not in cfg.chroms:
             continue
-        return sv
-    return _materialize(templates[0], contigs, cfg, rng)
+        out.append(entry)
+    return out
 
 
-def _materialize_in_region(
-    template: SVTemplate,
-    contigs: dict[str, int],
-    regions: RegionSet,
-    cfg: SamplerConfig,
-    rng: random.Random,
-    *,
-    exact: bool = False,
-) -> SV:
-    """
-    Materialise an SV inside ``regions``
-
-    ``exact=False``: the SV's primary breakpoint lies somewhere inside a
-    random region but its length is drawn from the template. Used for
-    blacklist-style injection where only "touching" matters
-
-    ``exact=True``: the SV's breakpoints copy the region's exact BED
-    boundaries (pos = start + 1, end = end). Used for gnomAD injection so
-    that :func:`svforge.validate.overlap.GnomadIndex.overlaps` can detect the
-    match within its 2 bp tolerance
-
-    Falls back to uniform sampling if no chromosome matches both the template
-    and the region set
-    """
-    allowed = set(template.chroms) if template.chroms else set(contigs.keys())
-    if cfg.chroms is not None:
-        allowed &= set(cfg.chroms)
-    candidates = [c for c in regions.chromosomes if c in allowed and c in contigs]
-    if not candidates:
-        return _materialize(template, contigs, cfg, rng)
-
-    chrom = rng.choice(candidates)
-    intervals = regions.intervals_on(chrom)
-    if not intervals:
-        return _materialize(template, contigs, cfg, rng)
-
-    start, end = rng.choice(intervals)
-    chrom_len = contigs[chrom]
-
-    svlen_min, svlen_max = _clamp_range((template.svlen_min, template.svlen_max), cfg.svlen_range)
-    homlen_min, homlen_max = _clamp_range(
-        (template.homlen_min, template.homlen_max), cfg.homlen_range
+def _sample_without_replacement(pool: Sequence[_T], count: int, rng: random.Random) -> list[_T]:
+    if count <= len(pool):
+        return rng.sample(list(pool), count)
+    log.warning(
+        "Requested %d injections from catalog of size %d; falling back to sampling "
+        "with replacement",
+        count,
+        len(pool),
     )
+    return [rng.choice(list(pool)) for _ in range(count)]
 
-    homlen = rng.randint(homlen_min, homlen_max)
+
+def _gnomad_entry_to_sv(entry: GnomadEntry, cfg: SamplerConfig, rng: random.Random) -> SV:
     vaf = rng.uniform(*cfg.vaf_range)
     genotype = "1/1" if vaf >= 0.9 else "0/1"
     sv_id = f"{cfg.id_prefix}_{uuid.UUID(int=rng.getrandbits(128)).hex[:10]}"
 
-    if template.svtype == "BND":
-        if exact:
-            pos = max(1, start + 1)
-            mate_chrom = chrom
-            mate_pos = min(end, chrom_len - 1)
-        else:
-            mate_candidates = _bnd_mate_candidates(chrom, contigs, cfg)
-            mate_chrom = rng.choice(mate_candidates)
-            pos_lo = max(1, start + 1)
-            pos_hi = max(pos_lo, min(end, chrom_len - 1))
-            pos = rng.randint(pos_lo, pos_hi)
-            mate_pos = rng.randint(
-                _CHROM_SAMPLE_MARGIN,
-                max(_CHROM_SAMPLE_MARGIN + 1, contigs[mate_chrom] - _CHROM_SAMPLE_MARGIN),
-            )
-        strands = rng.choice(("+-", "-+", "++", "--"))
+    if entry.svtype == "BND":
         return SV(
             id=sv_id,
             svtype="BND",
-            chrom=chrom,
-            pos=pos,
-            end=pos,
+            chrom=entry.chrom,
+            pos=entry.pos,
+            end=entry.pos,
             svlen=1,
-            mate_chrom=mate_chrom,
-            mate_pos=mate_pos,
-            strands=strands,
-            homlen=homlen,
+            mate_chrom=entry.end_chrom,
+            mate_pos=entry.end,
+            strands="+-",
             vaf=vaf,
             genotype=genotype,
             origin=cfg.origin,
+            source="gnomad",
+            info_extra={"SVFORGE_SOURCE_ID": entry.source_id},
         )
 
-    if exact:
-        pos = max(1, start + 1)
-        end_pos = max(pos + 1, min(chrom_len - 1, end))
-    else:
-        svlen = rng.randint(svlen_min, svlen_max)
-        pos_lo = max(1, start + 1)
-        pos_hi = max(pos_lo, min(end, chrom_len - 1))
-        pos = rng.randint(pos_lo, pos_hi)
-        end_pos = min(chrom_len - 1, pos + svlen)
-    actual_len = max(1, end_pos - pos)
-    strands = _default_strands(template.svtype)
+    svlen = max(1, entry.end - entry.pos)
     return SV(
         id=sv_id,
-        svtype=template.svtype,
-        chrom=chrom,
-        pos=pos,
-        end=end_pos,
-        svlen=actual_len,
-        strands=strands,
-        homlen=homlen,
+        svtype=entry.svtype,
+        chrom=entry.chrom,
+        pos=entry.pos,
+        end=entry.end,
+        svlen=svlen,
+        strands=_default_strands(entry.svtype),
         vaf=vaf,
         genotype=genotype,
         origin=cfg.origin,
+        source="gnomad",
+        info_extra={"SVFORGE_SOURCE_ID": entry.source_id},
+    )
+
+
+def _blacklist_entry_to_sv(entry: BlacklistEntry, cfg: SamplerConfig, rng: random.Random) -> SV:
+    vaf = rng.uniform(*cfg.vaf_range)
+    genotype = "1/1" if vaf >= 0.9 else "0/1"
+    sv_id = f"{cfg.id_prefix}_{uuid.UUID(int=rng.getrandbits(128)).hex[:10]}"
+
+    svtype_pool = (
+        [t for t in _BLACKLIST_SVTYPES if cfg.svtypes is None or t in cfg.svtypes]
+        if cfg.svtypes is not None
+        else list(_BLACKLIST_SVTYPES)
+    )
+    svtype = rng.choice(svtype_pool)
+    svlen = max(1, entry.end - entry.pos)
+    return SV(
+        id=sv_id,
+        svtype=svtype,
+        chrom=entry.chrom,
+        pos=entry.pos,
+        end=entry.end,
+        svlen=svlen,
+        strands=_default_strands(svtype),
+        vaf=vaf,
+        genotype=genotype,
+        origin=cfg.origin,
+        source="blacklist",
+        info_extra={"SVFORGE_SOURCE_ID": entry.source_id},
     )
 
 
@@ -433,6 +396,7 @@ def _materialize(
             vaf=vaf,
             genotype=genotype,
             origin=cfg.origin,
+            source="bank",
         )
 
     max_pos = chrom_len - svlen - _CHROM_SAMPLE_MARGIN
@@ -455,6 +419,7 @@ def _materialize(
         vaf=vaf,
         genotype=genotype,
         origin=cfg.origin,
+        source="bank",
     )
 
 
@@ -510,16 +475,6 @@ def _clamp_range(
     return new_lo, new_hi
 
 
-def _overlaps_region(rs: RegionSet, sv: SV) -> bool:
-    if sv.svtype == "BND":
-        return rs.overlaps_point(sv.chrom, sv.pos) or (
-            sv.mate_chrom is not None
-            and sv.mate_pos is not None
-            and rs.overlaps_point(sv.mate_chrom, sv.mate_pos)
-        )
-    return rs.overlaps_vcf(sv.chrom, sv.pos, sv.end)
-
-
 def _replace(cfg: SamplerConfig, **kw: object) -> SamplerConfig:
     data: dict[str, object] = {
         "n": cfg.n,
@@ -528,9 +483,7 @@ def _replace(cfg: SamplerConfig, **kw: object) -> SamplerConfig:
         "svlen_range": cfg.svlen_range,
         "homlen_range": cfg.homlen_range,
         "vaf_range": cfg.vaf_range,
-        "blacklist": cfg.blacklist,
         "blacklist_fraction": cfg.blacklist_fraction,
-        "gnomad": cfg.gnomad,
         "gnomad_fraction": cfg.gnomad_fraction,
         "seed": cfg.seed,
         "origin": cfg.origin,
