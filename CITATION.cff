@@ -1,0 +1,13 @@
+cff-version: 1.2.0
+message: "Please consider citing svForge if you use it"
+title: "svForge"
+authors:
+  - family-names: "Natiez"
+    given-names: "Pierre"
+version: "1.0.0"
+date-released: "2026-04-25"
+license: MIT
+repository-code: "https://github.com/pieetie/svforge"
+identifiers:
+  - type: doi
+    value: "10.5281/zenodo.19762333"
