@@ -8,6 +8,10 @@
 
 ### Generate synthetic SV VCFs to stress-test your pipelines with confidence
 
+[![PyPI version](https://img.shields.io/pypi/v/svforge.svg)](https://pypi.org/project/svforge/)
+[![License](https://img.shields.io/pypi/l/svforge)](https://pypi.org/project/svforge/)
+[![DOI](https://zenodo.org/badge/1218168425.svg)](https://doi.org/10.5281/zenodo.19762333)
+
 ---
 
 **svForge** produces caller-specific VCFs (Manta, DELLY) in VCF / VCF.gz / BCF format with fine-grained control over variability (HOMLEN, SVLEN, VAF) and realistic artefact injection (SVs in ENCODE blacklist regions, gnomAD germline SVs).
