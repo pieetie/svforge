@@ -4,11 +4,36 @@ on:
   push:
     tags:
       - "v*"
-  workflow_dispatch:
 
 jobs:
+  verify-tag:
+    name: Verify tag matches pyproject version
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Check tag == project version
+        shell: bash
+        run: |
+          set -euo pipefail
+          tag="${GITHUB_REF_NAME}"
+          tag_version="${tag#v}"
+          project_version=$(python -c "import tomllib, pathlib; print(tomllib.loads(pathlib.Path('pyproject.toml').read_text())['project']['version'])")
+          echo "Tag:     $tag (parsed: $tag_version)"
+          echo "Project: $project_version"
+          if [[ "$tag_version" != "$project_version" ]]; then
+            echo "::error::Tag ($tag_version) does not match pyproject.toml version ($project_version)"
+            exit 1
+          fi
+
   quality:
     name: Quality gate before publish
+    needs: verify-tag
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -38,6 +63,18 @@ jobs:
       - name: Pytest
         run: pytest
 
+      - name: bcftools round-trip check
+        shell: bash
+        run: |
+          set -euo pipefail
+          tmp=$(mktemp -d)
+          svforge gen --caller manta --out "$tmp/manta.vcf.gz" --n 50 --sample-name T01 --seed 42
+          svforge gen --caller delly --out "$tmp/delly.bcf"    --n 50 --sample-name T01 --seed 42
+          bcftools view -h "$tmp/manta.vcf.gz" > /dev/null
+          bcftools view -h "$tmp/delly.bcf"    > /dev/null
+          test "$(bcftools view -H "$tmp/manta.vcf.gz" | wc -l)" -gt 0
+          test "$(bcftools view -H "$tmp/delly.bcf"    | wc -l)" -gt 0
+
   build:
     name: Build sdist and wheel
     needs: quality
@@ -50,11 +87,14 @@ jobs:
         with:
           python-version: "3.12"
 
-      - name: Install build
-        run: python -m pip install -U pip build
+      - name: Install build and twine
+        run: python -m pip install -U pip build twine
 
       - name: Build
         run: python -m build
+
+      - name: Twine check
+        run: twine check dist/*
 
       - name: Upload artefacts
         uses: actions/upload-artifact@v4
