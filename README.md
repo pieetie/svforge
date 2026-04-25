@@ -62,4 +62,8 @@ Run `svforge <cmd> --help` for the full flag list.
 
 ## License
 
-[MIT](LICENSE)
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="docs/assets/vector-svg/icons-on-background/icon-nb-app.svg">
+  <source media="(prefers-color-scheme: light)" srcset="docs/assets/vector-svg/icons-on-background/icon-bn-app.svg">
+  <img src="docs/assets/vector-svg/icons-on-background/icon-bn-app.svg" alt="svForge icon" width="14" style="vertical-align: -1px;">
+</picture> Distributed under the <a href="./LICENSE">MIT License</a>.
