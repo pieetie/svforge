@@ -165,6 +165,14 @@ svforge validate --vcf data_local/gen-test/synthetic.vcf.gz
 svforge validate --vcf data_local/gen-test/synthetic.vcf.gz --report-tsv data_local/gen-test/validate_report.tsv
 ```
 
+If `bcftools index` fails, sort first:
+
+```bash
+bcftools sort -Oz -o data_local/gen-test/synthetic.sorted.vcf.gz data_local/gen-test/synthetic.vcf.gz
+bcftools index -t data_local/gen-test/synthetic.sorted.vcf.gz
+svforge validate --vcf data_local/gen-test/synthetic.sorted.vcf.gz --report-tsv data_local/gen-test/validate_report.tsv
+```
+
 ---
 
 ## 6. Developer commands (from repository root)
