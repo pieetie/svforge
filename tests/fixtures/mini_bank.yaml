@@ -1,0 +1,24 @@
+name: mini_bank
+genome: hg38
+
+templates:
+  - svtype: DEL
+    svlen: [100, 1000]
+    homlen: [0, 5]
+    weight: 2.0
+  - svtype: DUP
+    svlen: [500, 5000]
+    homlen: [0, 10]
+    weight: 1.0
+  - svtype: INV
+    svlen: [1000, 10000]
+    homlen: [0, 15]
+    weight: 1.0
+  - svtype: INS
+    svlen: [50, 500]
+    homlen: [0, 5]
+    weight: 1.0
+  - svtype: BND
+    svlen: [1, 1]
+    homlen: [0, 5]
+    weight: 1.0

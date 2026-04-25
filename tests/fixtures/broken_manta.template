@@ -1,0 +1,7 @@
+##fileformat=VCFv4.1
+##fileDate={FILE_DATE}
+##source=GenerateSVCandidates 1.6.0
+##contig=<ID=chr1,length=248956422>
+##INFO=<ID=SVTYPE,Number=1,Type=String,Description="Type of structural variant">
+##cmdline={CMDLINE}
+#CHROM	POS	ID	REF	ALT	QUAL	FILTER	INFO	FORMAT	{NORMAL_SAMPLE}	{TUMOR_SAMPLE}
