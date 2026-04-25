@@ -1,8 +1,8 @@
 <h1>
 <picture>
-  <source media="(prefers-color-scheme: dark)" srcset="docs/assets/vector-svg/logos-no-background/logo-red-and-white.svg">
-  <source media="(prefers-color-scheme: light)" srcset="docs/assets/vector-svg/logos-no-background/logo-red-and-black.svg">
-  <img src="docs/assets/vector-svg/logos-no-background/logo-red-and-black.svg" alt="svForge logo" width="450">
+  <source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/pieetie/svforge/main/docs/assets/vector-svg/logos-no-background/logo-red-and-white.svg">
+  <source media="(prefers-color-scheme: light)" srcset="https://raw.githubusercontent.com/pieetie/svforge/main/docs/assets/vector-svg/logos-no-background/logo-red-and-black.svg">
+  <img src="https://raw.githubusercontent.com/pieetie/svforge/main/docs/assets/vector-svg/logos-no-background/logo-red-and-black.svg" alt="svForge logo" width="450">
 </picture>
 </h1>
 
@@ -67,7 +67,7 @@ Run `svforge <cmd> --help` for the full flag list.
 ## License
 
 <picture>
-  <source media="(prefers-color-scheme: dark)" srcset="docs/assets/vector-svg/icons-on-background/icon-nb-app.svg">
-  <source media="(prefers-color-scheme: light)" srcset="docs/assets/vector-svg/icons-on-background/icon-bn-app.svg">
-  <img src="docs/assets/vector-svg/icons-on-background/icon-bn-app.svg" alt="svForge icon" width="14" style="vertical-align: -1px;">
+  <source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/pieetie/svforge/main/docs/assets/vector-svg/icons-on-background/icon-nb-app.svg">
+  <source media="(prefers-color-scheme: light)" srcset="https://raw.githubusercontent.com/pieetie/svforge/main/docs/assets/vector-svg/icons-on-background/icon-bn-app.svg">
+  <img src="https://raw.githubusercontent.com/pieetie/svforge/main/docs/assets/vector-svg/icons-on-background/icon-bn-app.svg" alt="svForge icon" width="14" style="vertical-align: -1px;">
 </picture> Distributed under the <a href="./LICENSE">MIT License</a>.
