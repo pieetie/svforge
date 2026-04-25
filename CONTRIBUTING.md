@@ -18,7 +18,6 @@ pip install -e ".[dev,test]"
 
 ```bash
 ruff check .
-ruff format --check .
 mypy src
 pytest -q
 ```
