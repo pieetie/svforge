@@ -2,7 +2,7 @@
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="docs/assets/vector-svg/logos-no-background/logo-red-and-white.svg">
   <source media="(prefers-color-scheme: light)" srcset="docs/assets/vector-svg/logos-no-background/logo-red-and-black.svg">
-  <img src="docs/assets/vector-svg/logos-no-background/logo-red-and-black.svg" alt="svForge logo" width="320">
+  <img src="docs/assets/vector-svg/logos-no-background/logo-red-and-black.svg" alt="svForge logo" width="450">
 </picture>
 </h1>
 
