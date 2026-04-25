@@ -1,0 +1,60 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  quality:
+    name: Lint, type-check, test
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.10", "3.11", "3.12"]
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install bcftools
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y bcftools
+
+      - name: Set up Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+          cache: pip
+
+      - name: Install package
+        run: |
+          python -m pip install -U pip
+          python -m pip install -e ".[dev,test]"
+
+      - name: Ruff lint
+        run: ruff check .
+
+      - name: Mypy
+        run: mypy src
+
+      - name: Pytest
+        run: pytest
+
+      - name: bcftools round-trip check
+        shell: bash
+        run: |
+          set -euo pipefail
+          tmp=$(mktemp -d)
+          svforge gen --caller manta --out "$tmp/manta.vcf.gz" --n 50 --sample-name T01 --seed 42
+          svforge gen --caller delly --out "$tmp/delly.bcf"    --n 50 --sample-name T01 --seed 42
+          bcftools view -h "$tmp/manta.vcf.gz" > /dev/null
+          bcftools view -h "$tmp/delly.bcf"    > /dev/null
+          test "$(bcftools view -H "$tmp/manta.vcf.gz" | wc -l)" -gt 0
+          test "$(bcftools view -H "$tmp/delly.bcf"    | wc -l)" -gt 0
