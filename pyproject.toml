@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "svforge"
-version = "1.0.0"
+version = "1.0.1"
 description = "Synthetic VCF generator for structural variants (Manta, DELLY) with controlled variability and realistic artefact injection"
 readme = "README.md"
 requires-python = ">=3.10"

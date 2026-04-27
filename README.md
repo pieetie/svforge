@@ -14,7 +14,7 @@
 
 ---
 
-**svForge** produces caller-specific VCFs (Manta, DELLY) in VCF / VCF.gz / BCF format with fine-grained control over variability (HOMLEN, SVLEN, VAF) and realistic artefact injection (SVs in ENCODE blacklist regions, gnomAD germline SVs).
+**svForge** produces caller-shaped VCFs (Manta, DELLY) in VCF / VCF.gz / BCF format with fine-grained control over variability (HOMLEN, SVLEN, VAF) and realistic artefact injection (SVs in ENCODE blacklist regions, gnomAD germline SVs).
 
 Designed to be modular, it is easy to adapt to your own use case. 
 You can tune generation parameters, plug in new callers, and customize the workflow without reworking the whole tool.

@@ -1,5 +1,17 @@
 # Changelog
 
+## [1.0.1] — 2026-04-28
+
+### Fixed
+
+- `gen-pair` now produces a two-sample somatic VCF (#7).
+- VCF output is now tabix-indexable; previously inter-chromosomal BND records broke sort order (#6).
+- README DOI and license badges (#8, #9).
+
+### Changed
+
+- **BREAKING**: `gen-pair` replaces `--out-tumor` / `--out-normal` with a single `--out` flag.
+
 ## [1.0.0] — 2026-04-25
 
 Initial release.
