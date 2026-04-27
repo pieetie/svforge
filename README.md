@@ -10,7 +10,7 @@
 
 [![PyPI version](https://img.shields.io/pypi/v/svforge.svg)](https://pypi.org/project/svforge/)
 [![License](https://img.shields.io/pypi/l/svforge)](https://pypi.org/project/svforge/)
-[![DOI](https://zenodo.org/badge/1218168425.svg)](https://doi.org/10.5281/zenodo.19762333)
+[![DOI](https://img.shields.io/badge/DOI-10.5281%2Fzenodo.19762333-blue)](https://doi.org/10.5281/zenodo.19762333)
 
 ---
 
