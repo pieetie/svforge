@@ -53,7 +53,7 @@ def test_manta_header_and_records_parse(tmp_path: Path) -> None:
     writer = get_writer("manta")
     svs = _svs()
     header = writer.header_lines("TUMOR01")
-    records = writer.format_records(svs, "TUMOR01")
+    records = writer.format_records_sorted(svs, "TUMOR01", header)
 
     out = tmp_path / "out.vcf"
     write_vcf(out, header, records)
@@ -83,14 +83,15 @@ def test_manta_bnd_mates_have_mateid() -> None:
     ]
     records = writer.format_records(svs, "S")
     assert len(records) == 2
-    assert "MATEID=bnd1_2" in records[0]
-    assert "MATEID=bnd1_1" in records[1]
+    lines = [r.line for r in records]
+    assert any("MATEID=bnd1_2" in ln for ln in lines)
+    assert any("MATEID=bnd1_1" in ln for ln in lines)
 
 def test_manta_writes_vcf_gz_and_bcf(tmp_path: Path) -> None:
     writer = get_writer("manta")
     svs = _svs()
     header = writer.header_lines("S")
-    records = writer.format_records(svs, "S")
+    records = writer.format_records_sorted(svs, "S", header)
 
     for suffix in (".vcf", ".vcf.gz", ".bcf"):
         out = tmp_path / f"out{suffix}"

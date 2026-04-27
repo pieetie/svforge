@@ -31,15 +31,17 @@ def test_sample_pair_writes_two_consistent_vcfs(tmp_path: Path, mini_bank: Bank)
     tumor_out = tmp_path / "tumor.vcf.gz"
     normal_out = tmp_path / "normal.vcf.gz"
 
+    tumor_hdr = writer.header_lines("TUMOR01")
+    normal_hdr = writer.header_lines("NORMAL01")
     write_vcf(
         tumor_out,
-        writer.header_lines("TUMOR01"),
-        writer.format_records(pair.tumor, "TUMOR01"),
+        tumor_hdr,
+        writer.format_records_sorted(pair.tumor, "TUMOR01", tumor_hdr),
     )
     write_vcf(
         normal_out,
-        writer.header_lines("NORMAL01"),
-        writer.format_records(pair.normal, "NORMAL01"),
+        normal_hdr,
+        writer.format_records_sorted(pair.normal, "NORMAL01", normal_hdr),
     )
 
     with pysam.VariantFile(str(tumor_out)) as vf:

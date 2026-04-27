@@ -44,7 +44,7 @@ def test_delly_one_record_per_event(tmp_path: Path) -> None:
     writer = get_writer("delly")
     svs = _svs()
     header = writer.header_lines("SAMP01")
-    records = writer.format_records(svs, "SAMP01")
+    records = writer.format_records_sorted(svs, "SAMP01", header)
     assert len(records) == len(svs)
 
     out = tmp_path / "out.vcf"
@@ -67,7 +67,8 @@ def test_delly_bnd_has_chr2_pos2(tmp_path: Path) -> None:
         strands="+-",
     )
     out = tmp_path / "d.vcf"
-    write_vcf(out, writer.header_lines("S"), writer.format_records([sv], "S"))
+    hdr = writer.header_lines("S")
+    write_vcf(out, hdr, writer.format_records_sorted([sv], "S", hdr))
     with pysam.VariantFile(str(out)) as vf:
         rec = next(iter(vf))
     assert rec.info["CHR2"] == "chr7"
@@ -78,6 +79,7 @@ def test_delly_roundtrip_bcf(tmp_path: Path) -> None:
     writer = get_writer("delly")
     svs = _svs()
     out = tmp_path / "out.bcf"
-    write_vcf(out, writer.header_lines("S"), writer.format_records(svs, "S"))
+    hdr = writer.header_lines("S")
+    write_vcf(out, hdr, writer.format_records_sorted(svs, "S", hdr))
     with pysam.VariantFile(str(out)) as vf:
         assert sum(1 for _ in vf) == len(svs)
