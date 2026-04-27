@@ -363,7 +363,7 @@ def _write_sample_vcf(
         provenance_tags=provenance_tags,
         template_override=header_template_override,
     )
-    records = writer.format_records(svs, sample_name)
+    records = writer.format_records_sorted(svs, sample_name, header)
     write_vcf(out_path, header, records)
 
 

@@ -18,6 +18,8 @@ from pathlib import Path
 
 import pysam
 
+from svforge.writers.base import VCFRecord
+
 
 def detect_mode(path: Path) -> str:
     """
@@ -39,7 +41,7 @@ def detect_mode(path: Path) -> str:
 def write_vcf(
     out_path: str | Path,
     header_lines: Iterable[str],
-    record_lines: Iterable[str],
+    record_lines: Iterable[VCFRecord],
 ) -> Path:
     """
     Materialise a text VCF to a file in the format implied by ``out_path``
@@ -54,7 +56,7 @@ def write_vcf(
     mode = detect_mode(out)
 
     header_text = _lines_to_text(header_lines)
-    record_text = _lines_to_text(record_lines)
+    record_text = _records_to_text(record_lines)
 
     if mode == "w":
         out.write_text(header_text + record_text, encoding="utf-8")
@@ -85,5 +87,13 @@ def write_vcf(
 def _lines_to_text(lines: Iterable[str]) -> str:
     parts: list[str] = []
     for line in lines:
+        parts.append(line if line.endswith("\n") else line + "\n")
+    return "".join(parts)
+
+
+def _records_to_text(records: Iterable[VCFRecord]) -> str:
+    parts: list[str] = []
+    for rec in records:
+        line = rec.line
         parts.append(line if line.endswith("\n") else line + "\n")
     return "".join(parts)

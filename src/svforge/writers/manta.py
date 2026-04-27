@@ -17,7 +17,7 @@ from typing import ClassVar
 
 from svforge import __version__
 from svforge.core.models import SV
-from svforge.writers.base import CallerWriter
+from svforge.writers.base import CallerWriter, VCFRecord
 
 
 class MantaWriter(CallerWriter):
@@ -40,7 +40,7 @@ class MantaWriter(CallerWriter):
         "{NORMAL_SAMPLE}",
     )
 
-    def format_record(self, sv: SV, sample_name: str) -> list[str]:
+    def format_record(self, sv: SV, sample_name: str) -> list[VCFRecord]:
         if sv.svtype == "BND":
             return _bnd_mate_records(sv)
         return [_symbolic_record(sv)]
@@ -96,11 +96,11 @@ def _base_info(sv: SV) -> list[str]:
     return info
 
 
-def _symbolic_record(sv: SV) -> str:
+def _symbolic_record(sv: SV) -> VCFRecord:
     alt = f"<{sv.svtype}>"
     info = ";".join(_base_info(sv))
     fmt, sample = _sample_column(sv)
-    return "\t".join(
+    line = "\t".join(
         [
             sv.chrom,
             str(sv.pos),
@@ -114,6 +114,7 @@ def _symbolic_record(sv: SV) -> str:
             sample,
         ]
     )
+    return VCFRecord(chrom=sv.chrom, pos=sv.pos, line=line)
 
 
 def _bnd_alt(ref_base: str, mate_chrom: str, mate_pos: int, strands: str) -> str:
@@ -146,7 +147,7 @@ def _mate_strands(strands: str) -> str:
     return f"{s2}{s1}"
 
 
-def _bnd_mate_records(sv: SV) -> list[str]:
+def _bnd_mate_records(sv: SV) -> list[VCFRecord]:
     if sv.mate_chrom is None or sv.mate_pos is None:
         raise ValueError(f"BND {sv.id!r} missing mate coordinates")
     id1 = f"{sv.id}_1"
@@ -168,7 +169,7 @@ def _bnd_mate_records(sv: SV) -> list[str]:
     info2.append(f"SVFORGE_SOURCE={sv.source}")
 
     fmt, sample = _sample_column(sv)
-    rec1 = "\t".join(
+    line1 = "\t".join(
         [
             sv.chrom,
             str(sv.pos),
@@ -182,7 +183,7 @@ def _bnd_mate_records(sv: SV) -> list[str]:
             sample,
         ]
     )
-    rec2 = "\t".join(
+    line2 = "\t".join(
         [
             sv.mate_chrom,
             str(sv.mate_pos),
@@ -196,7 +197,10 @@ def _bnd_mate_records(sv: SV) -> list[str]:
             sample,
         ]
     )
-    return [rec1, rec2]
+    return [
+        VCFRecord(chrom=sv.chrom, pos=sv.pos, line=line1),
+        VCFRecord(chrom=sv.mate_chrom, pos=sv.mate_pos, line=line2),
+    ]
 
 
 from svforge.writers._registry import register_writer  # noqa: E402

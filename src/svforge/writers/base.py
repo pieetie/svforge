@@ -16,8 +16,11 @@ as long as it carries the placeholders listed in :attr:`CallerWriter.REQUIRED_PL
 from __future__ import annotations
 
 import datetime as _dt
+import logging
+import re
 from abc import ABC, abstractmethod
 from collections.abc import Iterable, Sequence
+from dataclasses import dataclass
 from functools import cache
 from importlib import resources
 from pathlib import Path
@@ -27,6 +30,34 @@ from svforge.core.genome import GenomeBuild, validate_genome
 from svforge.core.models import SV
 
 SYNTHETIC_REFERENCE = "svforge_synthetic_reference.fa"
+
+_LOG = logging.getLogger(__name__)
+
+_CONTIG_RE = re.compile(r"^##contig=<ID=([^,>]+)")
+
+
+@dataclass(frozen=True, slots=True)
+class VCFRecord:
+    """
+    A rendered VCF data line, tagged with sort key for ordering before write.
+
+    chrom and pos are duplicated from the line for sort efficiency; line itself
+    is the fully-formatted tab-separated VCF record without trailing newline.
+    """
+
+    chrom: str
+    pos: int
+    line: str
+
+
+def extract_contig_order(header_lines: Sequence[str]) -> list[str]:
+    """Return contig IDs in the order they appear in the header."""
+    contigs: list[str] = []
+    for line in header_lines:
+        m = _CONTIG_RE.match(line)
+        if m:
+            contigs.append(m.group(1))
+    return contigs
 
 
 class CallerWriter(ABC):
@@ -125,24 +156,62 @@ class CallerWriter(ABC):
         return _load_bundled_template(name)
 
     @abstractmethod
-    def format_record(self, sv: SV, sample_name: str) -> list[str]:
+    def format_record(self, sv: SV, sample_name: str) -> list[VCFRecord]:
         """
-        Return one or more text VCF records for ``sv``
+        Return one or more VCF records for ``sv``
 
-        Manta returns two lines for a BND event (one per mate). DELLY and
-        simple symbolic records (DEL/DUP/INV/INS) return a single-line list
+        Manta returns two records for a BND event (one per mate). DELLY and
+        simple symbolic records (DEL/DUP/INV/INS) return a single-item list
         """
 
-    def format_records(self, svs: Iterable[SV], sample_name: str) -> list[str]:
+    def format_records(self, svs: Iterable[SV], sample_name: str) -> list[VCFRecord]:
         """
-        Format a whole SV collection to a list of text VCF records
+        Format a whole SV collection to a list of VCF records (not sorted)
         """
-        records: list[str] = []
+        records: list[VCFRecord] = []
         for sv in svs:
             if sv.svtype not in self.supported_svtypes:
                 raise ValueError(f"Writer {self.name!r} does not support svtype {sv.svtype!r}")
             records.extend(self.format_record(sv, sample_name))
         return records
+
+    def format_records_sorted(
+        self,
+        svs: Iterable[SV],
+        sample_name: str,
+        header_lines: Sequence[str],
+    ) -> list[VCFRecord]:
+        """
+        Like :meth:`format_records` but ordered by ``(contig_index, pos)``.
+
+        Contig order is taken from ``##contig=`` lines in the rendered header, not
+        from a hardcoded genome list, so it stays aligned with
+        user-supplied ``--header-template`` and other template overrides.
+        """
+        raw = self.format_records(svs, sample_name)
+        return self.sort_records(raw, extract_contig_order(header_lines))
+
+    def sort_records(
+        self,
+        records: Sequence[VCFRecord],
+        contig_order: Sequence[str],
+    ) -> list[VCFRecord]:
+        """
+        Sort VCF records by (contig_index, pos), using header contig order.
+        """
+        contig_index = {c: i for i, c in enumerate(contig_order)}
+        warned: set[str] = set()
+
+        def key(rec: VCFRecord) -> tuple[int, int]:
+            idx = contig_index.get(rec.chrom)
+            if idx is None:
+                if rec.chrom not in warned:
+                    _LOG.warning("Records on undeclared contig %s", rec.chrom)
+                    warned.add(rec.chrom)
+                idx = 10**9
+            return (idx, rec.pos)
+
+        return sorted(records, key=key)
 
 
 @cache

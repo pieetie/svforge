@@ -16,7 +16,7 @@ from typing import ClassVar
 
 from svforge import __version__
 from svforge.core.models import SV
-from svforge.writers.base import CallerWriter
+from svforge.writers.base import CallerWriter, VCFRecord
 
 
 class DellyWriter(CallerWriter):
@@ -38,7 +38,7 @@ class DellyWriter(CallerWriter):
         "{NORMAL_SAMPLE}",
     )
 
-    def format_record(self, sv: SV, sample_name: str) -> list[str]:
+    def format_record(self, sv: SV, sample_name: str) -> list[VCFRecord]:
         return [_delly_record(sv)]
 
 
@@ -114,11 +114,11 @@ def _base_info(sv: SV) -> list[str]:
     return info
 
 
-def _delly_record(sv: SV) -> str:
+def _delly_record(sv: SV) -> VCFRecord:
     alt = f"<{sv.svtype}>"
     info = ";".join(_base_info(sv))
     fmt, sample = _sample_column(sv)
-    return "\t".join(
+    line = "\t".join(
         [
             sv.chrom,
             str(sv.pos),
@@ -132,6 +132,7 @@ def _delly_record(sv: SV) -> str:
             sample,
         ]
     )
+    return VCFRecord(chrom=sv.chrom, pos=sv.pos, line=line)
 
 
 from svforge.writers._registry import register_writer  # noqa: E402
