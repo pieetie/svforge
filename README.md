@@ -9,12 +9,12 @@
 ### Generate synthetic SV VCFs to stress-test your pipelines with confidence
 
 [![PyPI version](https://img.shields.io/pypi/v/svforge.svg)](https://pypi.org/project/svforge/)
-[![License](https://img.shields.io/pypi/l/svforge)](https://pypi.org/project/svforge/)
-[![DOI](https://zenodo.org/badge/1218168425.svg)](https://doi.org/10.5281/zenodo.19762333)
+[![License](https://img.shields.io/pypi/l/svforge)](https://github.com/pieetie/svforge/blob/main/LICENSE)
+[![DOI](https://img.shields.io/badge/DOI-10.5281%2Fzenodo.19762333-blue)](https://doi.org/10.5281/zenodo.19762333)
 
 ---
 
-**svForge** produces caller-specific VCFs (Manta, DELLY) in VCF / VCF.gz / BCF format with fine-grained control over variability (HOMLEN, SVLEN, VAF) and realistic artefact injection (SVs in ENCODE blacklist regions, gnomAD germline SVs).
+**svForge** produces caller-shaped VCFs (Manta, DELLY) in VCF / VCF.gz / BCF format with fine-grained control over variability (HOMLEN, SVLEN, VAF) and realistic artefact injection (SVs in ENCODE blacklist regions, gnomAD germline SVs).
 
 Designed to be modular, it is easy to adapt to your own use case. 
 You can tune generation parameters, plug in new callers, and customize the workflow without reworking the whole tool.
@@ -35,7 +35,7 @@ pip install -e ".[dev,test]"
 
 ## Quick start
 
-For ready-to-run command lines (single sample, tumor/normal pair, validation, banks, and dev checks), see [`docs/ready-to-use.md`](docs/ready-to-use.md).
+For ready-to-run command lines (single-sample `gen`, paired somatic `gen-pair`, validation, banks, and dev checks), see [`docs/ready-to-use.md`](docs/ready-to-use.md).
 
 ## Typical use cases
 
@@ -50,7 +50,7 @@ For ready-to-run command lines (single sample, tumor/normal pair, validation, ba
 
 ```
 svforge gen          # one VCF for one sample
-svforge gen-pair     # tumor + normal VCFs for somatic pipelines
+svforge gen-pair     # one 2-sample somatic VCF (NORMAL + TUMOR)
 svforge validate     # self-consistency check of injected SVs
 svforge bank list    # list built-in banks
 svforge bank show    # dump a bank as YAML

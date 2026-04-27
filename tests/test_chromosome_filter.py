@@ -184,8 +184,7 @@ def test_empty_pool_raises_explicit_error(tmp_path: Path) -> None:
     assert rc != 0
 
 def test_gen_pair_accepts_chromosome_filter(tmp_path: Path) -> None:
-    tumor = tmp_path / "t.vcf"
-    normal = tmp_path / "n.vcf"
+    paired = tmp_path / "paired.vcf"
     rc = main(
         [
             "gen-pair",
@@ -193,10 +192,8 @@ def test_gen_pair_accepts_chromosome_filter(tmp_path: Path) -> None:
             "manta",
             "--bank",
             str(BANK),
-            "--out-tumor",
-            str(tumor),
-            "--out-normal",
-            str(normal),
+            "--out",
+            str(paired),
             "--n-somatic",
             "5",
             "--n-germline",
@@ -214,6 +211,5 @@ def test_gen_pair_accepts_chromosome_filter(tmp_path: Path) -> None:
         ]
     )
     assert rc == 0
-    for path in (tumor, normal):
-        for rec in _records(path):
-            assert rec.chrom in {"chr1", "chr2"}
+    for rec in _records(paired):
+        assert rec.chrom in {"chr1", "chr2"}

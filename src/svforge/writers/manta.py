@@ -17,7 +17,7 @@ from typing import ClassVar
 
 from svforge import __version__
 from svforge.core.models import SV
-from svforge.writers.base import CallerWriter
+from svforge.writers.base import CallerWriter, VCFRecord
 
 
 class MantaWriter(CallerWriter):
@@ -40,10 +40,38 @@ class MantaWriter(CallerWriter):
         "{NORMAL_SAMPLE}",
     )
 
-    def format_record(self, sv: SV, sample_name: str) -> list[str]:
+    def format_record(self, sv: SV, sample_name: str) -> list[VCFRecord]:
         if sv.svtype == "BND":
             return _bnd_mate_records(sv)
         return [_symbolic_record(sv)]
+
+    def format_record_paired(
+        self,
+        sv: SV,
+        tumor_sample: str,
+        normal_sample: str,
+    ) -> list[VCFRecord]:
+        del tumor_sample, normal_sample  # column order fixed by SAMPLE_COLUMN_ORDER + paired helpers
+        if sv.svtype == "BND":
+            return _bnd_mate_records_paired(sv)
+        return [_symbolic_record_paired(sv)]
+
+
+def _paired_sample_columns(sv: SV) -> tuple[str, str, str]:
+    """
+    Return (FORMAT, normal_column, tumor_column) for a paired Manta record.
+
+    For germline variants, both columns reflect the variant's VAF.
+    For somatic variants, the NORMAL column is ref-only.
+    """
+    fmt = "PR:SR"
+    ref, alt = _sample_depth(sv.vaf)
+    split_alt = max(1, alt // 2)
+    split_ref = max(0, ref // 2)
+    tumor_col = f"{ref},{alt}:{split_ref},{split_alt}"
+    normal_col = tumor_col if sv.origin == "germline" else "30,0:15,0"
+
+    return fmt, normal_col, tumor_col
 
 
 def _sample_depth(vaf: float) -> tuple[int, int]:
@@ -96,11 +124,11 @@ def _base_info(sv: SV) -> list[str]:
     return info
 
 
-def _symbolic_record(sv: SV) -> str:
+def _symbolic_record(sv: SV) -> VCFRecord:
     alt = f"<{sv.svtype}>"
     info = ";".join(_base_info(sv))
     fmt, sample = _sample_column(sv)
-    return "\t".join(
+    line = "\t".join(
         [
             sv.chrom,
             str(sv.pos),
@@ -114,6 +142,29 @@ def _symbolic_record(sv: SV) -> str:
             sample,
         ]
     )
+    return VCFRecord(chrom=sv.chrom, pos=sv.pos, line=line)
+
+
+def _symbolic_record_paired(sv: SV) -> VCFRecord:
+    alt = f"<{sv.svtype}>"
+    info = ";".join(_base_info(sv))
+    fmt, normal_col, tumor_col = _paired_sample_columns(sv)
+    line = "\t".join(
+        [
+            sv.chrom,
+            str(sv.pos),
+            sv.id,
+            sv.ref_base,
+            alt,
+            ".",
+            sv.filter,
+            info,
+            fmt,
+            normal_col,
+            tumor_col,
+        ]
+    )
+    return VCFRecord(chrom=sv.chrom, pos=sv.pos, line=line)
 
 
 def _bnd_alt(ref_base: str, mate_chrom: str, mate_pos: int, strands: str) -> str:
@@ -146,7 +197,7 @@ def _mate_strands(strands: str) -> str:
     return f"{s2}{s1}"
 
 
-def _bnd_mate_records(sv: SV) -> list[str]:
+def _bnd_mate_records(sv: SV) -> list[VCFRecord]:
     if sv.mate_chrom is None or sv.mate_pos is None:
         raise ValueError(f"BND {sv.id!r} missing mate coordinates")
     id1 = f"{sv.id}_1"
@@ -168,7 +219,7 @@ def _bnd_mate_records(sv: SV) -> list[str]:
     info2.append(f"SVFORGE_SOURCE={sv.source}")
 
     fmt, sample = _sample_column(sv)
-    rec1 = "\t".join(
+    line1 = "\t".join(
         [
             sv.chrom,
             str(sv.pos),
@@ -182,7 +233,7 @@ def _bnd_mate_records(sv: SV) -> list[str]:
             sample,
         ]
     )
-    rec2 = "\t".join(
+    line2 = "\t".join(
         [
             sv.mate_chrom,
             str(sv.mate_pos),
@@ -196,7 +247,69 @@ def _bnd_mate_records(sv: SV) -> list[str]:
             sample,
         ]
     )
-    return [rec1, rec2]
+    return [
+        VCFRecord(chrom=sv.chrom, pos=sv.pos, line=line1),
+        VCFRecord(chrom=sv.mate_chrom, pos=sv.mate_pos, line=line2),
+    ]
+
+
+def _bnd_mate_records_paired(sv: SV) -> list[VCFRecord]:
+    if sv.mate_chrom is None or sv.mate_pos is None:
+        raise ValueError(f"BND {sv.id!r} missing mate coordinates")
+    id1 = f"{sv.id}_1"
+    id2 = f"{sv.id}_2"
+
+    alt1 = _bnd_alt(sv.ref_base, sv.mate_chrom, sv.mate_pos, sv.strands)
+    alt2 = _bnd_alt(sv.ref_base, sv.chrom, sv.pos, _mate_strands(sv.strands))
+
+    info1 = ["SVTYPE=BND", f"MATEID={id2}", f"EVENT={sv.id}"]
+    info2 = ["SVTYPE=BND", f"MATEID={id1}", f"EVENT={sv.id}"]
+    if sv.homlen:
+        info1.append(f"HOMLEN={sv.homlen}")
+        info2.append(f"HOMLEN={sv.homlen}")
+    if sv.origin == "somatic":
+        for info in (info1, info2):
+            info.append("SOMATIC")
+            info.append("SOMATICSCORE=60")
+    info1.append(f"SVFORGE_SOURCE={sv.source}")
+    info2.append(f"SVFORGE_SOURCE={sv.source}")
+
+    fmt, normal_col, tumor_col = _paired_sample_columns(sv)
+
+    line1 = "\t".join(
+        [
+            sv.chrom,
+            str(sv.pos),
+            id1,
+            sv.ref_base,
+            alt1,
+            ".",
+            sv.filter,
+            ";".join(info1),
+            fmt,
+            normal_col,
+            tumor_col,
+        ]
+    )
+    line2 = "\t".join(
+        [
+            sv.mate_chrom,
+            str(sv.mate_pos),
+            id2,
+            sv.ref_base,
+            alt2,
+            ".",
+            sv.filter,
+            ";".join(info2),
+            fmt,
+            normal_col,
+            tumor_col,
+        ]
+    )
+    return [
+        VCFRecord(chrom=sv.chrom, pos=sv.pos, line=line1),
+        VCFRecord(chrom=sv.mate_chrom, pos=sv.mate_pos, line=line2),
+    ]
 
 
 from svforge.writers._registry import register_writer  # noqa: E402

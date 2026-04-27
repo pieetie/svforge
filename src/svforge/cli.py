@@ -4,7 +4,7 @@ svforge command-line interface
 Subcommands:
 
 - ``gen``        single-sample synthetic VCF
-- ``gen-pair``   tumor + normal paired VCFs
+- ``gen-pair``   single paired somatic VCF (two sample columns)
 - ``validate``   self-consistency check against bundled injection catalogs
 - ``bank``       list / show built-in banks
 - ``callers``    list every registered writer
@@ -158,9 +158,11 @@ def _add_gen_parser(sub: argparse._SubParsersAction[argparse.ArgumentParser]) ->
 
 
 def _add_gen_pair_parser(sub: argparse._SubParsersAction[argparse.ArgumentParser]) -> None:
-    p = sub.add_parser("gen-pair", help="Generate paired tumor/normal VCFs")
-    p.add_argument("--out-tumor", type=Path, required=True)
-    p.add_argument("--out-normal", type=Path, required=True)
+    p = sub.add_parser(
+        "gen-pair",
+        help="Generate a paired tumor/normal somatic SV VCF (2 sample columns)",
+    )
+    p.add_argument("--out", type=Path, required=True, help="Output .vcf / .vcf.gz / .bcf")
     p.add_argument("--n-somatic", type=int, required=True)
     p.add_argument("--n-germline", type=int, required=True)
     p.add_argument("--tumor-sample-name", required=True)
@@ -224,32 +226,24 @@ def _cmd_gen_pair(args: argparse.Namespace) -> int:
     pair = sample_pair(bank, args.n_somatic, args.n_germline, cfg)
     writer = get_writer(args.caller)
     provenance = build_svforge_tags(caller=args.caller, seed=effective_seed, argv=sys.argv)
-    _write_sample_vcf(
+
+    _write_paired_vcf(
         writer,
         pair.tumor,
-        args.tumor_sample_name,
-        args.out_tumor,
-        args.genome,
-        provenance,
+        tumor_sample=args.tumor_sample_name,
+        normal_sample=args.normal_sample_name,
+        out_path=args.out,
+        genome=args.genome,
+        provenance_tags=provenance,
         header_template_override=args.header_template,
     )
-    _write_sample_vcf(
-        writer,
-        pair.normal,
-        args.normal_sample_name,
-        args.out_normal,
-        args.genome,
-        provenance,
-        header_template_override=args.header_template,
-    )
+
     log.info(
-        "Tumor: %d SVs (%d somatic + %d germline), Normal: %d SVs -> %s, %s (seed=%d)",
+        "Wrote %d SVs (%d somatic + %d germline) to %s (seed=%d)",
         len(pair.tumor),
         len(pair.somatic_ids),
         len(pair.germline_ids),
-        len(pair.normal),
-        args.out_tumor,
-        args.out_normal,
+        args.out,
         effective_seed,
     )
     return 0
@@ -363,7 +357,31 @@ def _write_sample_vcf(
         provenance_tags=provenance_tags,
         template_override=header_template_override,
     )
-    records = writer.format_records(svs, sample_name)
+    records = writer.format_records_sorted(svs, sample_name, header)
+    write_vcf(out_path, header, records)
+
+
+def _write_paired_vcf(
+    writer: CallerWriter,
+    svs: list[SV],
+    *,
+    tumor_sample: str,
+    normal_sample: str,
+    out_path: Path,
+    genome: GenomeBuild,
+    provenance_tags: Sequence[str],
+    header_template_override: Path | None = None,
+) -> None:
+    header = writer.header_lines_paired(
+        tumor_sample=tumor_sample,
+        normal_sample=normal_sample,
+        genome=genome,
+        provenance_tags=provenance_tags,
+        template_override=header_template_override,
+    )
+    records = writer.format_records_paired_sorted(
+        svs, tumor_sample, normal_sample, header
+    )
     write_vcf(out_path, header, records)
 
 

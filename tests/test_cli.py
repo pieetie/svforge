@@ -55,17 +55,14 @@ def test_cli_gen_manta_vcf_gz(tmp_path: Path, mini_bank_path: Path) -> None:
         assert sum(1 for _ in vf) > 0
 
 def test_cli_gen_pair(tmp_path: Path, mini_bank_path: Path) -> None:
-    tumor = tmp_path / "tumor.vcf.gz"
-    normal = tmp_path / "normal.vcf.gz"
+    out = tmp_path / "paired.vcf.gz"
     rc = main(
         [
             "gen-pair",
             "--caller",
             "delly",
-            "--out-tumor",
-            str(tumor),
-            "--out-normal",
-            str(normal),
+            "--out",
+            str(out),
             "--n-somatic",
             "5",
             "--n-germline",
@@ -83,12 +80,17 @@ def test_cli_gen_pair(tmp_path: Path, mini_bank_path: Path) -> None:
         ]
     )
     assert rc == 0
-    with pysam.VariantFile(str(tumor)) as vf:
-        tumor_ids = {r.id for r in vf if r.id}
-    with pysam.VariantFile(str(normal)) as vf:
-        normal_ids = {r.id for r in vf if r.id}
-    assert normal_ids.issubset(tumor_ids)
-    assert len(tumor_ids - normal_ids) >= 5
+    somatic_n = 0
+    germline_n = 0
+    with pysam.VariantFile(str(out)) as vf:
+        assert len(vf.header.samples) == 2
+        for rec in vf:
+            if rec.info.get("SOMATIC"):
+                somatic_n += 1
+            else:
+                germline_n += 1
+    assert somatic_n >= 5
+    assert germline_n >= 6
 
 def test_cli_validate_pass(
     tmp_path: Path,

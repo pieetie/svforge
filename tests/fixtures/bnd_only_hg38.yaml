@@ -1,0 +1,9 @@
+# Bank used by tests that must always emit BNDs (incl. inter-chrom) from the sampler
+name: bnd_only_hg38
+genome: hg38
+
+templates:
+  - svtype: BND
+    svlen: [1, 1]
+    homlen: [0, 5]
+    weight: 1.0
