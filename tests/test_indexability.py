@@ -208,7 +208,7 @@ def test_sort_preserves_record_content(tmp_path: Path) -> None:
             str(out),
         ]
     )
-    with open(out, encoding="utf-8") as fh:
+    with out.open(encoding="utf-8") as fh:
         records = [line.rstrip("\n") for line in fh if not line.startswith("#")]
     contig_order = _extract_contig_order(out)
     contig_idx = {c: i for i, c in enumerate(contig_order)}

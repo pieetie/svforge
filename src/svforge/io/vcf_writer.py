@@ -76,7 +76,7 @@ def write_vcf(
         staging.write_text(header_text + record_text, encoding="utf-8")
         with (
             pysam.VariantFile(str(staging)) as vin,
-            pysam.VariantFile(str(out), mode, header=vin.header) as vout,  # type: ignore[arg-type]
+            pysam.VariantFile(str(out), mode, header=vin.header) as vout,
         ):
             for rec in vin:
                 vout.write(rec)
