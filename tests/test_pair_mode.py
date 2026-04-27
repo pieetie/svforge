@@ -1,5 +1,6 @@
 """
-End-to-end tests for the pair (tumor + normal) mode
+Integration tests for :func:`~svforge.core.sampler.sample_pair`: writing tumor vs.
+normal-only SV lists as separate single-sample VCFs (distinct from CLI ``gen-pair``).
 """
 
 from __future__ import annotations
