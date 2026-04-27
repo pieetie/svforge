@@ -35,7 +35,7 @@ pip install -e ".[dev,test]"
 
 ## Quick start
 
-For ready-to-run command lines (single sample, tumor/normal pair, validation, banks, and dev checks), see [`docs/ready-to-use.md`](docs/ready-to-use.md).
+For ready-to-run command lines (single-sample `gen`, paired somatic `gen-pair`, validation, banks, and dev checks), see [`docs/ready-to-use.md`](docs/ready-to-use.md).
 
 ## Typical use cases
 
@@ -50,7 +50,7 @@ For ready-to-run command lines (single sample, tumor/normal pair, validation, ba
 
 ```
 svforge gen          # one VCF for one sample
-svforge gen-pair     # tumor + normal VCFs for somatic pipelines
+svforge gen-pair     # one 2-sample somatic VCF (NORMAL + TUMOR)
 svforge validate     # self-consistency check of injected SVs
 svforge bank list    # list built-in banks
 svforge bank show    # dump a bank as YAML
