@@ -129,15 +129,16 @@ svforge gen --caller manta --out data_local/gen-test/out.vcf.gz --n 100 --sample
 
 ---
 
-## 4. Tumor + normal pair (`gen-pair`)
+## 4. Paired somatic VCF (`gen-pair`)
+
+Produces **one** VCF with **two sample columns** (NORMAL + TUMOR for Manta, TUMOR + NORMAL for DELLY), like real `somaticSV.vcf.gz`.
 
 **Example:**
 
 ```bash
 svforge gen-pair \
   --caller manta \
-  --out-tumor data_local/gen-test/tumor.vcf.gz \
-  --out-normal data_local/gen-test/normal.vcf.gz \
+  --out data_local/gen-test/somaticSV.vcf.gz \
   --n-somatic 30 \
   --n-germline 10 \
   --tumor-sample-name TUMOR_01 \
