@@ -9,7 +9,7 @@
 ### Generate synthetic SV VCFs to stress-test your pipelines with confidence
 
 [![PyPI version](https://img.shields.io/pypi/v/svforge.svg)](https://pypi.org/project/svforge/)
-[![License](https://img.shields.io/pypi/l/svforge)](https://pypi.org/project/svforge/)
+[![License](https://img.shields.io/pypi/l/svforge)](https://github.com/pieetie/svforge/blob/main/LICENSE)
 [![DOI](https://img.shields.io/badge/DOI-10.5281%2Fzenodo.19762333-blue)](https://doi.org/10.5281/zenodo.19762333)
 
 ---
