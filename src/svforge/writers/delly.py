@@ -41,6 +41,47 @@ class DellyWriter(CallerWriter):
     def format_record(self, sv: SV, sample_name: str) -> list[VCFRecord]:
         return [_delly_record(sv)]
 
+    def format_record_paired(
+        self,
+        sv: SV,
+        tumor_sample: str,
+        normal_sample: str,
+    ) -> list[VCFRecord]:
+        del tumor_sample, normal_sample
+        return [_delly_record_paired(sv)]
+
+
+def _paired_sample_columns(sv: SV) -> tuple[str, str, str]:
+    """
+    Return (FORMAT, tumor_column, normal_column) for a paired DELLY record.
+
+    Note: DELLY column order is (TUMOR, NORMAL), not (NORMAL, TUMOR) like Manta.
+    """
+    total = 30
+    alt = max(1, round(total * sv.vaf))
+    ref = max(0, total - alt)
+    junction_alt = max(1, alt // 2)
+    junction_ref = max(0, ref // 2)
+    gq = 60
+    gl_alt = (
+        "-50,-5,0"
+        if sv.genotype == "1/1"
+        else ("0,-5,-50" if sv.genotype == "0/0" else "-10,-1,-10")
+    )
+    fmt = "GT:GL:GQ:FT:RC:RCL:RCR:RDCN:DR:DV:RR:RV"
+
+    tumor_col = (
+        f"{sv.genotype}:{gl_alt}:{gq}:PASS:40:20:20:2:"
+        f"{ref}:{alt}:{junction_ref}:{junction_alt}"
+    )
+
+    if sv.origin == "germline":
+        normal_col = tumor_col
+    else:
+        normal_col = f"0/0:0,-5,-50:{gq}:PASS:40:20:20:2:30:0:15:0"
+
+    return fmt, tumor_col, normal_col
+
 
 def _ct_for(sv: SV) -> str:
     """
@@ -130,6 +171,28 @@ def _delly_record(sv: SV) -> VCFRecord:
             info,
             fmt,
             sample,
+        ]
+    )
+    return VCFRecord(chrom=sv.chrom, pos=sv.pos, line=line)
+
+
+def _delly_record_paired(sv: SV) -> VCFRecord:
+    alt = f"<{sv.svtype}>"
+    info = ";".join(_base_info(sv))
+    fmt, tumor_col, normal_col = _paired_sample_columns(sv)
+    line = "\t".join(
+        [
+            sv.chrom,
+            str(sv.pos),
+            sv.id,
+            sv.ref_base,
+            alt,
+            ".",
+            sv.filter,
+            info,
+            fmt,
+            tumor_col,
+            normal_col,
         ]
     )
     return VCFRecord(chrom=sv.chrom, pos=sv.pos, line=line)

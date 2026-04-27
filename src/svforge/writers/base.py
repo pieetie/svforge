@@ -191,6 +191,53 @@ class CallerWriter(ABC):
         raw = self.format_records(svs, sample_name)
         return self.sort_records(raw, extract_contig_order(header_lines))
 
+    def format_record_paired(
+        self,
+        sv: SV,
+        tumor_sample: str,
+        normal_sample: str,
+    ) -> list[VCFRecord]:
+        """
+        Return one or more VCF records for ``sv`` with two sample columns.
+
+        Column order follows :attr:`SAMPLE_COLUMN_ORDER`. Sample columns are
+        formatted differently based on ``sv.origin``:
+
+        - ``somatic``: the NORMAL column has ref-only support
+        - ``germline``: both columns have alt support consistent with VAF
+
+        Manta returns two records for a BND event (one per mate). DELLY and
+        simple symbolic records (DEL/DUP/INV/INS) return a single-item list.
+        """
+        raise NotImplementedError(
+            f"{type(self).__name__} does not support paired (somatic) output"
+        )
+
+    def format_records_paired(
+        self,
+        svs: Iterable[SV],
+        tumor_sample: str,
+        normal_sample: str,
+    ) -> list[VCFRecord]:
+        """Format a whole SV collection as paired tumor/normal records (not sorted)."""
+        records: list[VCFRecord] = []
+        for sv in svs:
+            if sv.svtype not in self.supported_svtypes:
+                raise ValueError(f"Writer {self.name!r} does not support svtype {sv.svtype!r}")
+            records.extend(self.format_record_paired(sv, tumor_sample, normal_sample))
+        return records
+
+    def format_records_paired_sorted(
+        self,
+        svs: Iterable[SV],
+        tumor_sample: str,
+        normal_sample: str,
+        header_lines: Sequence[str],
+    ) -> list[VCFRecord]:
+        """Like :meth:`format_records_paired` but sorted by (contig_index, pos)."""
+        raw = self.format_records_paired(svs, tumor_sample, normal_sample)
+        return self.sort_records(raw, extract_contig_order(header_lines))
+
     def sort_records(
         self,
         records: Sequence[VCFRecord],
